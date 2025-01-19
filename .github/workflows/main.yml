@@ -1,0 +1,90 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      ["master"]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued; you may prefer to change this.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Elixir dependencies cache
+        id: cache-elixir-deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/mix.lock') }}
+
+      - name: Set up Elixir
+        uses: erlef/setup-elixir@v1
+        with:
+          elixir-version: '1.15.4'
+          otp-version: '25'
+
+      - name: Install Elixir dependencies
+        run: mix deps.get
+
+      - name: Compile Elixir application
+        run: mix compile
+
+      - name: Run Tests
+        run: mix test
+
+  wasmify:
+    needs: test
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install WABT
+      run: |
+        sudo apt update
+        sudo apt install -y wabt
+
+    - name: Convert WAT files to WASM
+      run: wat2wasm  *.wat
+
+    - name: Test WASM files
+      run: wasm-validate *.wasm
+
+  deploy:
+    needs: wasmify
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy *.html and *.wasm files to ./dist
+        run: |
+          mkdir -p dist
+          cp *.html *.wasm dist/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

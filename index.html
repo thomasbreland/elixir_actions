@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Elixir Orb Example</title>
+</head>
+<body>
+  <h1>Calculate Mean</h1>
+  <input id="arg" type="number"/>
+  <button id="insert-button">Insert Number</button>
+  <button id="calculate-button">Calculate Mean</button>
+  <div id="result"></div>
+
+  <script>
+    // Load the WebAssembly module
+    let wasmModule;
+
+    // Fetch and instantiate the WASM file
+    fetch('calculate_mean.wasm')
+      .then(response => response.arrayBuffer())
+      .then(bytes => WebAssembly.instantiate(bytes))
+      .then(result => {
+        wasmModule = result.instance;
+        console.log('WASM Module Loaded');
+      })
+      .catch(err => console.error('Error loading WASM module:', err));
+
+    // Attach functionality to the Insert button
+    document.getElementById('insert-button').addEventListener('click', () => {
+      if (wasmModule) {
+        // Pass an integer argument to the `insert` function
+        const number = document.getElementById('arg').value;  // Example number
+        wasmModule.exports.insert(number);
+        document.getElementById('result').textContent = `Inserted: ${(!number) ? 0 : number}`;
+      } else {
+        alert('WASM module not loaded yet!');
+      }
+    });
+
+    // Attach functionality to the Calculate button
+    document.getElementById('calculate-button').addEventListener('click', () => {
+      if (wasmModule) {
+        // Call `calculate_mean` and display the result
+        const mean = wasmModule.exports.calculate_mean();
+        document.getElementById('result').textContent = `Calculated Mean: ${mean}`;
+      } else {
+        alert('WASM module not loaded yet!');
+      }
+    });
+  </script>
+</body>
+</html>
