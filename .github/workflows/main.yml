@@ -49,12 +49,26 @@ jobs:
       - name: Run Tests
         run: mix test
 
+      - name: Upload wat and html artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wat-html-artifacts
+          path: |
+            *.wat
+            *.html
+
   wasmify:
     needs: test
 
     runs-on: ubuntu-latest
 
     steps:
+
+    - name: Download wat and html artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: wat-html-artifacts
+
     - name: Install WABT
       run: |
         sudo apt update
@@ -65,6 +79,14 @@ jobs:
 
     - name: Test WASM files
       run: wasm-validate *.wasm
+      
+    - name: Upload wasm and html artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wasm-html-artifacts
+        path:  |
+            *.wasm
+            *.html
 
   deploy:
     needs: wasmify
@@ -75,6 +97,11 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
+      - name: Download wasm and html artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-html-artifacts
+
       - name: Copy *.html and *.wasm files to ./dist
         run: |
           mkdir -p dist
